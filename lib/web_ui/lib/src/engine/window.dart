@@ -13,7 +13,7 @@ import 'package:js/js.dart';
 import 'package:meta/meta.dart';
 import 'package:ui/ui.dart' as ui;
 
-import '../engine.dart' show registerHotRestartListener;
+import '../engine.dart' show flutterViewEmbedder, registerHotRestartListener;
 import 'browser_detection.dart';
 import 'navigation/history.dart';
 import 'navigation/js_url_strategy.dart';
@@ -233,31 +233,41 @@ class EngineFlutterWindow extends ui.SingletonFlutterWindow {
     if (!override) {
       double windowInnerWidth;
       double windowInnerHeight;
-      final html.VisualViewport? viewport = html.window.visualViewport;
 
-      if (viewport != null) {
-        if (operatingSystem == OperatingSystem.iOs) {
-          /// Chrome on iOS reports incorrect viewport.height when app
-          /// starts in portrait orientation and the phone is rotated to
-          /// landscape.
-          ///
-          /// We instead use documentElement clientWidth/Height to read
-          /// accurate physical size. VisualViewport api is only used during
-          /// text editing to make sure inset is correctly reported to
-          /// framework.
-          final double docWidth =
-              html.document.documentElement!.clientWidth.toDouble();
-          final double docHeight =
-              html.document.documentElement!.clientHeight.toDouble();
-          windowInnerWidth = docWidth * devicePixelRatio;
-          windowInnerHeight = docHeight * devicePixelRatio;
-        } else {
-          windowInnerWidth = viewport.width!.toDouble() * devicePixelRatio;
-          windowInnerHeight = viewport.height!.toDouble() * devicePixelRatio;
-        }
+      /// in order to allow the Flutter app to be only a part of the screen,
+      /// preferably check the size of the `flt-glass-pane` element
+      final html.Element? rootElement = flutterViewEmbedder.glassPaneElement;
+
+      if (rootElement != null) {
+        windowInnerWidth = rootElement.clientWidth.toDouble();
+        windowInnerHeight = rootElement.clientHeight.toDouble();
       } else {
-        windowInnerWidth = html.window.innerWidth! * devicePixelRatio;
-        windowInnerHeight = html.window.innerHeight! * devicePixelRatio;
+        final html.VisualViewport? viewport = html.window.visualViewport;
+
+        if (viewport != null) {
+          if (operatingSystem == OperatingSystem.iOs) {
+            /// Chrome on iOS reports incorrect viewport.height when app
+            /// starts in portrait orientation and the phone is rotated to
+            /// landscape.
+            ///
+            /// We instead use documentElement clientWidth/Height to read
+            /// accurate physical size. VisualViewport api is only used during
+            /// text editing to make sure inset is correctly reported to
+            /// framework.
+            final double docWidth =
+                html.document.documentElement!.clientWidth.toDouble();
+            final double docHeight =
+                html.document.documentElement!.clientHeight.toDouble();
+            windowInnerWidth = docWidth * devicePixelRatio;
+            windowInnerHeight = docHeight * devicePixelRatio;
+          } else {
+            windowInnerWidth = viewport.width!.toDouble() * devicePixelRatio;
+            windowInnerHeight = viewport.height!.toDouble() * devicePixelRatio;
+          }
+        } else {
+          windowInnerWidth = html.window.innerWidth! * devicePixelRatio;
+          windowInnerHeight = html.window.innerHeight! * devicePixelRatio;
+        }
       }
       _physicalSize = ui.Size(
         windowInnerWidth,
